@@ -85,9 +85,48 @@ public class Device extends IflDevice {
         /**
          * Initially lock page
          */
-        // iorb.getPage().lock(iorb);
+        PageTableEntry iorbPage = iorb.getPage();
+        iorbPage.lock(iorb);
 
-        return -1;
+        /**
+         * Second increment open page count
+         */
+        OpenFile iorbFile = iorb.getOpenFile();
+        iorbFile.incrementIORBCount();
+
+        /**
+         * Third, set iorb cylinder
+         */
+        int cylinderPos = this.calculate_cylinder_pos();
+        iorb.setCylinder();
+
+        /**
+         * Check status of thread that requested iorb
+         */
+        ThreadCB requesterThread = iorb.getThread();
+
+        /**
+         * If thread is not ThreadKill then enqueue, if is, return failure
+         */
+        if (requesterThread.getStatus() != ThreadCB.ThreadKill) {
+            /**
+             * Check that the device is idle
+             */
+            if (this.isBusy() == false) {
+                /** Not busy, so start io on current device */
+                this.startIO(iorb);
+            } else {
+                /**
+                 * Is busy, so put iorb on the queue. Must cast to my implementation of queue.
+                 */
+                ((OSPQueue) iorbQueue).add(iorb);
+            }
+
+            return SUCCESS;
+        }
+
+        /** Return false mainly b/c thread has status of ThreadKill */
+        return FAILURE;
     }
 
     /**
