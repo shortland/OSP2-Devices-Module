@@ -1,3 +1,13 @@
+/**
+ * Ilan Kleiman
+ * 110942711
+ * 
+ * I pledge my honor that all parts of this project were done by me individually, 
+ * without collaboration with anyone, and without consulting any external sources 
+ * that provide full or partial solutions to a similar project.
+ * I understand that breaking this pledge will result in an "F" for the entire course.
+ */
+
 package osp.Devices;
 
 import osp.IFLModules.*;
@@ -12,6 +22,7 @@ import osp.Memory.PageTableEntry;
  * @OSPProject Devices
  */
 public class IORB extends IflIORB {
+
     /**
      * The IORB constructor. Must have
      * 
@@ -22,14 +33,6 @@ public class IORB extends IflIORB {
      * @OSPProject Devices
      */
     public IORB(ThreadCB thread, PageTableEntry page, int blockNumber, int deviceID, int ioType, OpenFile openFile) {
-        // your code goes here
+        super(thread, page, blockNumber, deviceID, ioType, openFile);
     }
-
-    /*
-     * Feel free to add methods/fields to improve the readability of your code
-     */
 }
-
-/*
- * Feel free to add local classes to improve the readability of your code
- */

@@ -1,3 +1,13 @@
+/**
+ * Ilan Kleiman
+ * 110942711
+ * 
+ * I pledge my honor that all parts of this project were done by me individually, 
+ * without collaboration with anyone, and without consulting any external sources 
+ * that provide full or partial solutions to a similar project.
+ * I understand that breaking this pledge will result in an "F" for the entire course.
+ */
+
 package osp.Devices;
 
 import java.util.*;
@@ -17,6 +27,7 @@ import osp.FileSys.*;
  * @OSPProject Devices
  */
 public class DiskInterruptHandler extends IflDiskInterruptHandler {
+
     /**
      * Handles disk interrupts.
      * 
@@ -38,15 +49,7 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
      * @OSPProject Devices
      */
     public void do_handleInterrupt() {
-        // your code goes here
+        IORB interruptEvent = (IORB) InterruptVector.getEvent();
+        // ThreadCB interruptThread = InterruptVector.getThread();
     }
-
-    /*
-     * Feel free to add methods/fields to improve the readability of your code
-     */
-
 }
-
-/*
- * Feel free to add local classes to improve the readability of your code
- */
