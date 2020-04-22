@@ -119,7 +119,7 @@ public class Device extends IflDevice {
                 /**
                  * Is busy, so put iorb on the queue. Must cast to my implementation of queue.
                  */
-                ((OSPQueue) iorbQueue).add(iorb);
+                ((OSPQueue) iorbQueue).add(iorb, QUEUE.WAITING);
             }
 
             return SUCCESS;
