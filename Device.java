@@ -42,7 +42,7 @@ public class Device extends IflDevice {
         super(id, numberOfBlocks);
 
         /** Set OSPQueue to my queue class */
-        iorbQueue = new OSPQueue();
+        this.iorbQueue = new OSPQueue();
     }
 
     /**
@@ -52,17 +52,7 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public static void init() {
-        // /**
-        // * Set the primary queue as the one to start off with
-        // */
-        // Device.currentQueueInUse = QUEUE.PRIMARY;
-
-        // /**
-        // * Initialize the alternating queues to use
-        // */
-        // Device.requestQueues = new HashMap<>();
-        // Device.requestQueues.put(QUEUE.PRIMARY, new ArrayList<>());
-        // Device.requestQueues.put(QUEUE.SECONDARY, new ArrayList<>());
+        return;
     }
 
     /**
@@ -109,17 +99,20 @@ public class Device extends IflDevice {
          * If thread is not ThreadKill then enqueue, if is, return failure
          */
         if (requesterThread.getStatus() != ThreadCB.ThreadKill) {
+
             /**
              * Check that the device is idle
              */
             if (this.isBusy() == false) {
+
                 /** Not busy, so start io on current device */
                 this.startIO(iorb);
             } else {
+
                 /**
                  * Is busy, so put iorb on the queue. Must cast to my implementation of queue.
                  */
-                ((OSPQueue) iorbQueue).add(iorb, QUEUE.WAITING);
+                ((OSPQueue) this.iorbQueue).add(iorb, QUEUE.WAITING);
             }
 
             return SUCCESS;
@@ -136,9 +129,21 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public IORB do_dequeueIORB() {
-        // your code goes here
+        if (((OSPQueue) this.iorbQueue).isEmpty() == false) {
+            IORB iorb = ((OSPQueue) this.iorbQueue).remove();
 
-        return null;
+            return iorb;
+        } else {
+
+            /**
+             * Device running queue is empty, so return null.
+             * 
+             * But before doing so, swap the running queue with the waiting queue.
+             */
+            ((OSPQueue) this.iorbQueue).swap_queues();
+
+            return null;
+        }
     }
 
     /**

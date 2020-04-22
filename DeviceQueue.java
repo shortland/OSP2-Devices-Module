@@ -26,23 +26,41 @@ public class DeviceQueue implements GenericQueueInterface {
     public DeviceQueue() {
         this.deviceQueue = new HashMap<>();
 
-        this.deviceQueue.put(QUEUE.RUNNING, new ArrayList<Object>());
-        this.deviceQueue.put(QUEUE.WAITING, new ArrayList<Object>());
+        this.deviceQueue.put(QUEUE.RUNNING, new ArrayList<IORB>());
+        this.deviceQueue.put(QUEUE.WAITING, new ArrayList<IORB>());
     }
 
-    /** Required */
+    /**
+     * Required - return length/size of running queue.
+     * 
+     * @see Only checks the running queue.
+     */
     public final int length() {
-        return queue.size();
+        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+
+        return runningQueue.size();
     }
 
-    /** Required */
+    /**
+     * Required - return whether running queue is empty.
+     * 
+     * @see Only checks the running queue.
+     */
     public final boolean isEmpty() {
-        return queue.isEmpty();
+        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+
+        return runningQueue.isEmpty();
     }
 
-    /** Required */
-    public final synchronized boolean contains(Object obj) {
-        return queue.contains(o);
+    /**
+     * Required - return whether running queue contains specified iorb.
+     * 
+     * @see Only checks the running queue.
+     */
+    public final synchronized boolean contains(IORB iorb) {
+        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+
+        return runningQueue.contains(iorb);
     }
 
     /**
@@ -50,19 +68,49 @@ public class DeviceQueue implements GenericQueueInterface {
      * 
      * @see Device.do_enqueueIORB()
      */
-    public void add(Object obj, QUEUE type) {
+    public void add(IORB iorb, QUEUE type) {
         if (type == QUEUE.RUNNING) {
             List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
-            runningQueue.add(obj);
+            runningQueue.add(iorb);
             this.deviceQueue.replace(QUEUE.RUNNING, runningQueue);
         } else if (type == QUEUE.WAITING) {
             List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
 
-            waitingQueue.add(obj);
+            waitingQueue.add(iorb);
             this.deviceQueue.replace(QUEUE.WAITING, waitingQueue);
         }
 
         return;
+    }
+
+    /**
+     * Swap the running queue and waiting queue with eachother.
+     * 
+     * Typically this should be called when Device module detects that the running
+     * queue is empty.
+     */
+    public synchronized void swap_queues() {
+        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+        List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
+
+        this.deviceQueue.replace(QUEUE.WAITING, runningQueue);
+        this.deviceQueue.replace(QUEUE.RUNNING, waitingQueue);
+    }
+
+    /**
+     * Get the first element of the running queue
+     */
+    public synchronized IORB remove() {
+        if (this.isEmpty() == false) {
+            List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+            IORB iorb = runningQueue.remove(0);
+
+            this.deviceQueue.replace(QUEUE.RUNNING, runningQueue);
+
+            return iorb;
+        } else {
+            return null;
+        }
     }
 }
