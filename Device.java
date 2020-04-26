@@ -159,7 +159,37 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public void do_cancelPendingIO(ThreadCB thread) {
-        // your code goes here
+
+        /**
+         * Iterate through the objects in the queue and remove those that match the
+         * argument thread.
+         */
+        for (IORB iorb : ((OSPQUEUE) this.iorbQueue).get_queue(QUEUE.RUNNING)) {
+            ThreadCB iorbThread = iorb.getThread();
+
+            if (iorbThread.equals(thread)) {
+                PageTableEntry iorbPage = iorb.getPage();
+                OpenFile iorbFile = iorb.getOpenFile();
+
+                /** Unlock page */
+                iorbPage.unlock();
+
+                /** Decrement open io */
+                iorbFile.decrementIORBCount();
+
+                /** Check and close the file */
+                if (iorbFile.closePending == true && iorbFile.getIORBCount() == 0) {
+                    iorbFile.close();
+                }
+
+                /**
+                 * Finally, remove the iorb from the queue.
+                 * 
+                 * removedIorb should be the same as iorb
+                 */
+                IORB removedIorb = ((OSPQUEUE) this.iorbQueue).remove(iorb, QUEUE.RUNNING);
+            }
+        }
 
         return;
     }
