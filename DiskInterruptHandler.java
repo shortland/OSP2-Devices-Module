@@ -49,7 +49,79 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
      * @OSPProject Devices
      */
     public void do_handleInterrupt() {
-        IORB interruptEvent = (IORB) InterruptVector.getEvent();
-        // ThreadCB interruptThread = InterruptVector.getThread();
+
+        /**
+         * Get the iorb from the interrupt vector
+         * 
+         * & Get other used properties of the iorb.
+         */
+        InterruptVector interrupt = this.InterruptVector;
+        Event interruptEvent = interrupt.getEvent();
+        IORB iorb = (IORB) interruptEvent;
+        OpenFile iorbFile = iorb.getOpenFile();
+
+        /** Decrement the iorb count */
+        iorbFile.decrementIORBCount();
+
+        /** Close file if iorb count = 0 and close pending set */
+        if (iorbFile.closePending == true && iorbFile.getIORBCount() == 0) {
+            iorbFile.close();
+        }
+
+        /** Unlock the page */
+        PageTableEntry iorbPageTable = iorb.getPage();
+
+        iorbPageTable.unlock();
+
+        /** Check that it's alive */
+        TaskCB iorbTask = iorb.getThread().getTask();
+
+        if (iorbTask.getStatus() == TaskLive) {
+            FrameTableEntry iorbFrameTable = iorbPageTable.getFrame();
+
+            /** Check if iorb was from swap */
+            if (iorb.getDeviceID() != SwapDeviceID) {
+
+                /** Set the frame to referenced = true */
+                iorbFrameTable.setReferenced(true);
+
+                /** If was type read, then set dirty */
+                if (iorb.getIOType() == FileRead) {
+                    iorbFrameTable.setDirty(true);
+                }
+            } else {
+
+                /** Was directed to swap device (& is live), so mark as clean; dirty = false */
+                iorbFrameTable.setDirty(false);
+            }
+        } else {
+
+            /**
+             * Task is dead & frame was associated with iorb is reserved by task
+             * (getReserved(), unreserved it: setUnreserved())
+             */
+            if (iorbFrameTable.getReserved() == true) {
+                iorbFrameTable.setUnreserved(iorbTask);
+            }
+        }
+
+        /** Wake up threads waiting on iorb */
+        interruptEvent.notifyThreads();
+
+        /** Set the device as not busy */
+        Device iorbDevice = Device.get(iorb.getDeviceID);
+
+        iorbDevice.setBusy(false);
+
+        /** Dequeue iorb from Device.dequeueIORB() */
+        IORB iorbDequeued = iorbDevice.dequeueIORB();
+
+        /** If not null, startIO() */
+        if (iorbDequeued != null) {
+            iorbDevice.startIO(iorbDequeued);
+        }
+
+        /** Finally, dispatch */
+        ThreadCB.dispatch();
     }
 }
