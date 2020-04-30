@@ -10,6 +10,8 @@
 
 package osp.Devices;
 
+import java.util.*;
+
 import osp.IFLModules.*;
 import osp.Threads.*;
 import osp.Utilities.*;
@@ -17,7 +19,6 @@ import osp.Hardware.*;
 import osp.Memory.*;
 import osp.FileSys.*;
 import osp.Tasks.*;
-import java.util.*;
 
 /**
  * This class stores all pertinent information about a device in the device
@@ -41,8 +42,8 @@ public class Device extends IflDevice {
     public Device(int id, int numberOfBlocks) {
         super(id, numberOfBlocks);
 
-        /** Set OSPQueue to my queue class */
-        this.iorbQueue = new OSPQueue();
+        /** Set DeviceQueue to my queue class */
+        this.iorbQueue = new DeviceQueue();
     }
 
     /**
@@ -87,8 +88,8 @@ public class Device extends IflDevice {
         /**
          * Third, set iorb cylinder
          */
-        int cylinderPos = this.calculate_cylinder_pos();
-        iorb.setCylinder();
+        int cylinderPos = this.calculate_cylinder_pos(iorb);
+        iorb.setCylinder(cylinderPos);
 
         /**
          * Check status of thread that requested iorb
@@ -112,7 +113,7 @@ public class Device extends IflDevice {
                 /**
                  * Is busy, so put iorb on the queue. Must cast to my implementation of queue.
                  */
-                ((OSPQueue) this.iorbQueue).add(iorb, QUEUE.WAITING);
+                ((DeviceQueue) this.iorbQueue).add(iorb, QUEUE.WAITING);
             }
 
             return SUCCESS;
@@ -129,21 +130,22 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public IORB do_dequeueIORB() {
-        if (((OSPQueue) this.iorbQueue).isEmpty() == false) {
-            IORB iorb = ((OSPQueue) this.iorbQueue).remove();
-
-            return iorb;
-        } else {
-
-            /**
-             * Device running queue is empty, so return null.
-             * 
-             * But before doing so, swap the running queue with the waiting queue.
-             */
-            ((OSPQueue) this.iorbQueue).swap_queues();
-
-            return null;
+        if (((DeviceQueue) this.iorbQueue).isEmpty() == false) {
+            return ((DeviceQueue) this.iorbQueue).remove();
         }
+
+        /**
+         * Device running queue is empty, so return null.
+         * 
+         * But before doing so, swap the running queue with the waiting queue.
+         */
+        ((DeviceQueue) this.iorbQueue).swap_queues();
+
+        if (((DeviceQueue) this.iorbQueue).isEmpty() == false) {
+            return ((DeviceQueue) this.iorbQueue).remove();
+        }
+
+        return null;
     }
 
     /**
@@ -164,7 +166,8 @@ public class Device extends IflDevice {
          * Iterate through the objects in the queue and remove those that match the
          * argument thread.
          */
-        for (IORB iorb : ((OSPQUEUE) this.iorbQueue).get_queue(QUEUE.RUNNING)) {
+        // Arrays.stream(QUEUE.values()).forEach(queueType -> {
+        for (IORB iorb : ((DeviceQueue) this.iorbQueue).get_queue(QUEUE.WAITING)) {
             ThreadCB iorbThread = iorb.getThread();
 
             if (iorbThread.equals(thread)) {
@@ -187,9 +190,10 @@ public class Device extends IflDevice {
                  * 
                  * removedIorb should be the same as iorb
                  */
-                IORB removedIorb = ((OSPQUEUE) this.iorbQueue).remove(iorb, QUEUE.RUNNING);
+                ((DeviceQueue) this.iorbQueue).remove(iorb, QUEUE.WAITING);
             }
         }
+        // });
 
         return;
     }
@@ -200,7 +204,7 @@ public class Device extends IflDevice {
      * 
      * @return
      */
-    public int calculate_cylinder_pos() {
+    public int calculate_cylinder_pos(IORB iorb) {
         int blocksInTrack = this.calculate_blocks_in_track();
 
         return iorb.getBlockNumber() / (blocksInTrack * ((Disk) this).getPlatters());

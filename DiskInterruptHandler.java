@@ -11,6 +11,7 @@
 package osp.Devices;
 
 import java.util.*;
+
 import osp.IFLModules.*;
 import osp.Hardware.*;
 import osp.Interrupts.*;
@@ -55,8 +56,7 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
          * 
          * & Get other used properties of the iorb.
          */
-        InterruptVector interrupt = this.InterruptVector;
-        Event interruptEvent = interrupt.getEvent();
+        Event interruptEvent = InterruptVector.getEvent();
         IORB iorb = (IORB) interruptEvent;
         OpenFile iorbFile = iorb.getOpenFile();
 
@@ -75,9 +75,9 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
 
         /** Check that it's alive */
         TaskCB iorbTask = iorb.getThread().getTask();
+        FrameTableEntry iorbFrameTable = iorbPageTable.getFrame();
 
         if (iorbTask.getStatus() == TaskLive) {
-            FrameTableEntry iorbFrameTable = iorbPageTable.getFrame();
 
             /** Check if iorb was from swap */
             if (iorb.getDeviceID() != SwapDeviceID) {
@@ -100,7 +100,7 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
              * Task is dead & frame was associated with iorb is reserved by task
              * (getReserved(), unreserved it: setUnreserved())
              */
-            if (iorbFrameTable.getReserved() == true) {
+            if (iorbFrameTable.isReserved() == true) {
                 iorbFrameTable.setUnreserved(iorbTask);
             }
         }
@@ -109,7 +109,7 @@ public class DiskInterruptHandler extends IflDiskInterruptHandler {
         interruptEvent.notifyThreads();
 
         /** Set the device as not busy */
-        Device iorbDevice = Device.get(iorb.getDeviceID);
+        Device iorbDevice = Device.get(iorb.getDeviceID());
 
         iorbDevice.setBusy(false);
 

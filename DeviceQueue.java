@@ -15,13 +15,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public enum QUEUE {
-    WAITING, RUNNING
-}
+import osp.Utilities.*;
 
 public class DeviceQueue implements GenericQueueInterface {
 
-    Map<QUEUE_TYPE, List> deviceQueue;
+    Map<QUEUE, List> deviceQueue;
 
     public DeviceQueue() {
         this.deviceQueue = new HashMap<>();
@@ -35,6 +33,7 @@ public class DeviceQueue implements GenericQueueInterface {
      * 
      * @see Only checks the running queue.
      */
+    @Override
     public final int length() {
         List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
@@ -46,6 +45,7 @@ public class DeviceQueue implements GenericQueueInterface {
      * 
      * @see Only checks the running queue.
      */
+    @Override
     public final boolean isEmpty() {
         List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
@@ -57,10 +57,11 @@ public class DeviceQueue implements GenericQueueInterface {
      * 
      * @see Only checks the running queue.
      */
-    public final synchronized boolean contains(IORB iorb) {
+    @Override
+    public final synchronized boolean contains(Object obj) {
         List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
-        return runningQueue.contains(iorb);
+        return runningQueue.contains((IORB) obj);
     }
 
     /**
@@ -73,16 +74,10 @@ public class DeviceQueue implements GenericQueueInterface {
             List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
             runningQueue.add(iorb);
-
-            /** NOTE: might be redundant, don't remember. */
-            this.deviceQueue.replace(QUEUE.RUNNING, runningQueue);
         } else if (type == QUEUE.WAITING) {
             List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
 
             waitingQueue.add(iorb);
-
-            /** NOTE: might be redundant, don't remember. */
-            this.deviceQueue.replace(QUEUE.WAITING, waitingQueue);
         }
 
         return;
@@ -91,32 +86,22 @@ public class DeviceQueue implements GenericQueueInterface {
     /**
      * Remove the specified object from the specified thread.
      */
-    public synchronized IORB remove(IORB iorb, QUEUE type) {
+    public synchronized boolean remove(IORB iorb, QUEUE type) {
         if (type == QUEUE.RUNNING) {
             List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
 
             if (runningQueue.contains(iorb)) {
-                IORB removed = runningQueue.remove(iorb);
-
-                /** NOTE: might be redundant, don't remember. */
-                this.deviceQueue.replace(QUEUE.RUNNING, runningQueue);
-
-                return removed;
+                return runningQueue.remove(iorb);
             }
         } else if (type == QUEUE.WAITING) {
             List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
 
             if (waitingQueue.contains(iorb)) {
-                IORB removed = waitingQueue.remove(iorb);
-
-                /** NOTE: might be redundant, don't remember. */
-                this.deviceQueue.replace(QUEUE.WAITING, waitingQueue);
-
-                return removed;
+                return waitingQueue.remove(iorb);
             }
         }
 
-        return null;
+        return false;
     }
 
     /**
@@ -125,15 +110,11 @@ public class DeviceQueue implements GenericQueueInterface {
     public synchronized IORB remove() {
         if (this.isEmpty() == false) {
             List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
-            IORB iorb = runningQueue.remove(0);
 
-            /** NOTE: might be redundant, don't remember. */
-            this.deviceQueue.replace(QUEUE.RUNNING, runningQueue);
-
-            return iorb;
-        } else {
-            return null;
+            return (IORB) runningQueue.remove(0);
         }
+
+        return null;
     }
 
     /**
@@ -153,7 +134,7 @@ public class DeviceQueue implements GenericQueueInterface {
     /**
      * Get the specified queue obj
      */
-    public synchronized List get_queue(QUEUE type) {
+    public synchronized List<IORB> get_queue(QUEUE type) {
         if (type == QUEUE.RUNNING) {
 
             return this.deviceQueue.get(QUEUE.RUNNING);
