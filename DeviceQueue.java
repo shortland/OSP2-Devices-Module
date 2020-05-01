@@ -10,16 +10,13 @@
 
 package osp.Devices;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import osp.Utilities.*;
 
 public class DeviceQueue implements GenericQueueInterface {
 
-    Map<QUEUE, List> deviceQueue;
+    Map<QUEUE, List<IORB>> deviceQueue;
 
     public DeviceQueue() {
         this.deviceQueue = new HashMap<>();
@@ -29,39 +26,45 @@ public class DeviceQueue implements GenericQueueInterface {
     }
 
     /**
-     * Required - return length/size of running queue.
+     * Required - return length/size of both queues.
      * 
-     * @see Only checks the running queue.
+     * @see Checks both queues
      */
     @Override
     public final int length() {
-        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
-
-        return runningQueue.size();
+        return this.deviceQueue.get(QUEUE.RUNNING).size() + this.deviceQueue.get(QUEUE.WAITING).size();
     }
 
     /**
-     * Required - return whether running queue is empty.
+     * Required - return whether both queues are empty
      * 
-     * @see Only checks the running queue.
+     * @see Checks both queues
      */
     @Override
     public final boolean isEmpty() {
-        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
-
-        return runningQueue.isEmpty();
+        return this.deviceQueue.get(QUEUE.RUNNING).isEmpty() && this.deviceQueue.get(QUEUE.WAITING).isEmpty();
     }
 
     /**
-     * Required - return whether running queue contains specified iorb.
+     * Required - return whether either queue contains specified iorb.
      * 
-     * @see Only checks the running queue.
+     * @see Checks both queues
      */
     @Override
     public final synchronized boolean contains(Object obj) {
-        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+        for (IORB iorb : this.deviceQueue.get(QUEUE.RUNNING)) {
+            if (iorb.getID() == ((IORB) obj).getID()) {
+                return true;
+            }
+        }
 
-        return runningQueue.contains((IORB) obj);
+        for (IORB iorb : this.deviceQueue.get(QUEUE.WAITING)) {
+            if (iorb.getID() == ((IORB) obj).getID()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -69,15 +72,11 @@ public class DeviceQueue implements GenericQueueInterface {
      * 
      * @see Device.do_enqueueIORB()
      */
-    public void add(IORB iorb, QUEUE type) {
+    public synchronized void add(IORB iorb, QUEUE type) {
         if (type == QUEUE.RUNNING) {
-            List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
-
-            runningQueue.add(iorb);
+            this.deviceQueue.get(QUEUE.RUNNING).add(iorb);
         } else if (type == QUEUE.WAITING) {
-            List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
-
-            waitingQueue.add(iorb);
+            this.deviceQueue.get(QUEUE.WAITING).add(iorb);
         }
 
         return;
@@ -88,16 +87,13 @@ public class DeviceQueue implements GenericQueueInterface {
      */
     public synchronized boolean remove(IORB iorb, QUEUE type) {
         if (type == QUEUE.RUNNING) {
-            List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
-
-            if (runningQueue.contains(iorb)) {
-                return runningQueue.remove(iorb);
+            if (this.deviceQueue.get(QUEUE.RUNNING).contains(iorb)) {
+                return this.deviceQueue.get(QUEUE.RUNNING).remove(iorb);
             }
-        } else if (type == QUEUE.WAITING) {
-            List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
 
-            if (waitingQueue.contains(iorb)) {
-                return waitingQueue.remove(iorb);
+        } else if (type == QUEUE.WAITING) {
+            if (this.deviceQueue.get(QUEUE.WAITING).contains(iorb)) {
+                return this.deviceQueue.get(QUEUE.WAITING).remove(iorb);
             }
         }
 
@@ -105,13 +101,36 @@ public class DeviceQueue implements GenericQueueInterface {
     }
 
     /**
-     * Get the first element of the running queue
+     * Removes an element
      */
     public synchronized IORB remove() {
-        if (this.isEmpty() == false) {
-            List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+        /**
+         * Initially, checks the running queue whether there are any elemts to remove
+         */
+        if (this.deviceQueue.get(QUEUE.RUNNING).size() > 1) {
+            return (IORB) this.deviceQueue.get(QUEUE.RUNNING).remove(0);
+        } else if (this.deviceQueue.get(QUEUE.RUNNING).size() == 1) {
+            IORB last = (IORB) this.deviceQueue.get(QUEUE.RUNNING).remove(0);
 
-            return (IORB) runningQueue.remove(0);
+            /**
+             * Just removed the last element in a queue (its size was 1). Thus swap the
+             * queues out s.t. the waiting queue is now the running queue.
+             */
+            this.swap_queues();
+
+            return last;
+        }
+
+        /**
+         * No elements found are removable from the running queue - so if the waiting
+         * queue has any elements we can remove.
+         */
+        if (this.deviceQueue.get(QUEUE.WAITING).size() > 1) {
+            return (IORB) this.deviceQueue.get(QUEUE.WAITING).remove(0);
+        } else if (this.deviceQueue.get(QUEUE.WAITING).size() == 1) {
+            IORB last = (IORB) this.deviceQueue.get(QUEUE.WAITING).remove(0);
+
+            return last;
         }
 
         return null;
@@ -124,7 +143,7 @@ public class DeviceQueue implements GenericQueueInterface {
      * queue is empty.
      */
     public synchronized void swap_queues() {
-        List runningQueue = this.deviceQueue.get(QUEUE.RUNNING);
+        List runningQueue = new ArrayList<IORB>(); // this.deviceQueue.get(QUEUE.RUNNING);
         List waitingQueue = this.deviceQueue.get(QUEUE.WAITING);
 
         this.deviceQueue.replace(QUEUE.WAITING, runningQueue);
@@ -136,13 +155,19 @@ public class DeviceQueue implements GenericQueueInterface {
      */
     public synchronized List<IORB> get_queue(QUEUE type) {
         if (type == QUEUE.RUNNING) {
-
             return this.deviceQueue.get(QUEUE.RUNNING);
         } else if (type == QUEUE.WAITING) {
-
             return this.deviceQueue.get(QUEUE.WAITING);
         }
 
         return null;
+    }
+
+    /**
+     * Remove all objects from either queue
+     */
+    public synchronized void remove_all(List<IORB> itemsToRemove) {
+        this.deviceQueue.get(QUEUE.RUNNING).removeAll(itemsToRemove);
+        this.deviceQueue.get(QUEUE.WAITING).removeAll(itemsToRemove);
     }
 }

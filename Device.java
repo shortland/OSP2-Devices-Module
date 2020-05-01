@@ -130,22 +130,7 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public IORB do_dequeueIORB() {
-        if (((DeviceQueue) this.iorbQueue).isEmpty() == false) {
-            return ((DeviceQueue) this.iorbQueue).remove();
-        }
-
-        /**
-         * Device running queue is empty, so return null.
-         * 
-         * But before doing so, swap the running queue with the waiting queue.
-         */
-        ((DeviceQueue) this.iorbQueue).swap_queues();
-
-        if (((DeviceQueue) this.iorbQueue).isEmpty() == false) {
-            return ((DeviceQueue) this.iorbQueue).remove();
-        }
-
-        return null;
+        return ((DeviceQueue) this.iorbQueue).remove();
     }
 
     /**
@@ -161,39 +146,45 @@ public class Device extends IflDevice {
      * @OSPProject Devices
      */
     public void do_cancelPendingIO(ThreadCB thread) {
+        List<IORB> itemsToRemove = new ArrayList<>();
 
         /**
          * Iterate through the objects in the queue and remove those that match the
          * argument thread.
          */
-        // Arrays.stream(QUEUE.values()).forEach(queueType -> {
-        for (IORB iorb : ((DeviceQueue) this.iorbQueue).get_queue(QUEUE.WAITING)) {
-            ThreadCB iorbThread = iorb.getThread();
+        Arrays.stream(QUEUE.values()).forEach(queueType -> {
+            for (IORB iorb : ((DeviceQueue) this.iorbQueue).get_queue(queueType)) {
+                ThreadCB iorbThread = iorb.getThread();
 
-            if (iorbThread.equals(thread)) {
-                PageTableEntry iorbPage = iorb.getPage();
-                OpenFile iorbFile = iorb.getOpenFile();
+                if (iorbThread.equals(thread)) {
+                    PageTableEntry iorbPage = iorb.getPage();
+                    OpenFile iorbFile = iorb.getOpenFile();
 
-                /** Unlock page */
-                iorbPage.unlock();
+                    /** Unlock page */
+                    iorbPage.unlock();
 
-                /** Decrement open io */
-                iorbFile.decrementIORBCount();
+                    /** Decrement open io */
+                    iorbFile.decrementIORBCount();
 
-                /** Check and close the file */
-                if (iorbFile.closePending == true && iorbFile.getIORBCount() == 0) {
-                    iorbFile.close();
+                    /** Check and close the file */
+                    if (iorbFile.closePending == true && iorbFile.getIORBCount() == 0) {
+                        iorbFile.close();
+                    }
+
+                    /**
+                     * Finally, remove the iorb from the queue.
+                     * 
+                     * removedIorb should be the same as iorb
+                     */
+                    itemsToRemove.add(iorb);
                 }
-
-                /**
-                 * Finally, remove the iorb from the queue.
-                 * 
-                 * removedIorb should be the same as iorb
-                 */
-                ((DeviceQueue) this.iorbQueue).remove(iorb, QUEUE.WAITING);
             }
-        }
-        // });
+        });
+
+        /**
+         * After finding matching IORBs in either queue - remove them from both queues.
+         */
+        ((DeviceQueue) this.iorbQueue).remove_all(itemsToRemove);
 
         return;
     }
@@ -207,7 +198,7 @@ public class Device extends IflDevice {
     public int calculate_cylinder_pos(IORB iorb) {
         int blocksInTrack = this.calculate_blocks_in_track();
 
-        return iorb.getBlockNumber() / (blocksInTrack * ((Disk) this).getPlatters());
+        return (int) Math.floor(iorb.getBlockNumber() / (blocksInTrack * ((Disk) this).getPlatters()));
     }
 
     /**
