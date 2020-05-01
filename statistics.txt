@@ -1,0 +1,67 @@
+# Statistics
+
+The numbers shown are ranges from the lowest to the highest values for each device.
+
+
+## Total number of tracks swept on each device
+
+[Total number of cylinders swept]
+
+    DEMO Range:
+        - Device 0: 866 - 9389
+        - Device 1: 6 - 102
+        - Device 2: 5 - 22
+
+    My Implementation Range:
+        - Device 0: 866 - 9926
+        - Device 1: 6 - 101
+        - Device 2: 5 - 19
+
+    Consensus: When comparing the demo to my implementation, the results are very similar. The only notable difference being that my implementation has slightly more track sweeps on device 0.
+
+
+## Average number of tracks swept per I/O request
+
+[Average number of cylinders swept per disk access]
+
+    DEMO Range:
+        - Device 0: 4 - 7
+        - Device 1: 1 - 2
+        - Device 2: 1
+
+    My Implementation Range:
+        - Device 0: 4 - 7
+        - Device 1: 1 - 2
+        - Device 2: 1 - 2
+
+    Consensus: The average number of sweeps per disk access is very similar. The data doesn't differ enough to draw any conclusion on which is more efficient.
+
+
+## Average turnaround time for I/O requests
+
+[Service time per I/O request]
+
+    DEMO Range:
+        - Device 0: 202 - 744
+        - Device 1: 195 - 452 
+        - Device 2: 576 - 1307
+
+    My Implementation Range:
+        - Device 0: 202 - 671
+        - Device 1: 221 - 452
+        - Device 2: 576 - 737
+
+    Consensus: Both implementations were very similar, although the demo's device 2 had a much higher maximum service time per I/O request.
+
+
+## System throughput
+
+[Average service time per thread]
+
+    DEMO Range:
+        16663.87 - 30770.156
+
+    My Implementation Range:
+        16663.87 - 34494.887
+
+    Consensus: The demo had a slightly lower maximum service time per thread.
